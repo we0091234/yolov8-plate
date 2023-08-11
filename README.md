@@ -16,7 +16,7 @@ python detect_rec_plate.py --detect_model weights/yolov8-lite-t-plate.pt  --rec_
 
 车牌检测训练链接如下：
 
-[车牌检测训练](https://github.com/we0091234/Chinese_license_plate_detection_recognition/tree/main/readme)
+[车牌检测训练](https://github.com/we0091234/yolov8-plate/tree/master/readme)
 
 ## **车牌识别训练**
 
