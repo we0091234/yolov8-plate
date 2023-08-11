@@ -14,19 +14,35 @@
 2. **修改ultralytics/datasets/yolov8-plate.yaml    train和val路径,换成你的数据路径**
 
    ```
-   train: /your/train/path #修改成你的训练集路径
-   val: /your/val/path     #修改成你的验证集路径
-   # number of classes
-   nc: 2                 #这里用的是2分类，0 单层车牌 1 双层车牌
+   train: /mnt/Gu/trainData/CCPD_TRAIN
+   val: /mnt/Gu/trainData/CCPD_VAL
+   test:  # test images (optional)
 
-   # class names
-   names: [ 'single','double']
+   # Keypoints
+   kpt_shape: [4, 2]  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
+   flip_idx:  [1, 0, 3, 2] 
+
+   # Classes
+   names:
+     0: single
+     1: double
 
    ```
-3. **训练**
+3. **训练
+   修改train.py**
 
    ```
-   python3 train.py --data data/widerface.yaml --cfg models/yolov5n-0.5.yaml --weights weights/plate_detect.pt --epoch 120
+   import os
+   # os.environ["OMP_NUM_THREADS"]='2'
+
+   from ultralytics import YOLO
+   # Load a model
+   model = YOLO('ultralytics/models/v8/yolov8-lite-t-pose.yaml')  # build a new model from YAML
+   model = YOLO('yolov8-lite-t.pt')  # load a pretrained model (recommended for training)  #预训练模型可以从yolov8-face这个repo里面找
+
+   # Train the model
+   model.train(data='yolov8-plate.yaml', epochs=100, imgsz=320, batch=16, device=[0])
+
    ```
 
-   结果存在run文件夹中
+   运行train.py  结果存在run文件夹中
