@@ -1,6 +1,6 @@
 ## **yolov8车牌识别算法，支持12种中文车牌类型**
 
-**环境要求: python >=3.6  pytorch >=1.7  pip install requirements.txt**
+**环境要求: 目前 pytorch 1.8 没有问题，高版本都会报错，有待排查，欢迎大家一起来找原因，提pr**
 
 #### **图片测试demo:**
 
@@ -46,4 +46,6 @@ python detect_rec_plate.py --detect_model weights/yolov8-lite-t-plate.pt  --rec_
 
 ## 联系
 
-**有问题可以提issues 或者加qq群:871797331 询问**
+**有问题添加微信: xiaolei19920229，拉进微信群**
+
+**者加qq群:871797331 询问**
