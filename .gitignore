@@ -9,6 +9,7 @@ runs/
 .vscode/
 build/
 result/
+onnx/
 *.pyc
 pretrained_model/
 # 不忽略下面指定的文件类型

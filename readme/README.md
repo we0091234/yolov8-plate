@@ -6,8 +6,6 @@
    ```
    label x y w h  
    ```
-   **自己的数据集**可以通过lablme 软件,create polygons标注车牌四个点即可，然后通过json2yolo.py 将数据集转为yolo格式，即可训练
-
 2. **修改ultralytics/datasets/yolov8-plate.yaml    train和val路径,换成你的数据路径**
 
    ```
@@ -20,7 +18,8 @@
    1: double
 
    ```
-3. **训练
+3. **训练**
+
    ```
    yolo task=detect mode=train model=yolov8s.yaml  data=./ultralytics/cfg/datasets/plate.yaml epochs=120 batch=32 imgsz=640 pretrained=False optimizer=SGD 
    ```
