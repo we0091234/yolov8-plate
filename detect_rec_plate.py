@@ -201,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument('--detect_model', nargs='+', type=str, default=r'weights/yolov8-lite-t-plate.pt', help='model.pt path(s)')  #yolov8检测模型
     parser.add_argument('--rec_model', type=str, default=r'weights/plate_rec_color.pth', help='model.pt path(s)')#车牌字符识别模型  
     parser.add_argument('--image_path', type=str, default=r'imgs', help='source')   #待识别图片路径
-    parser.add_argument('--img_size', type=int, default=320, help='inference size (pixels)')  #yolov8 网络模型输入大小
+    parser.add_argument('--img_size', type=int, default=640, help='inference size (pixels)')  #yolov8 网络模型输入大小
     parser.add_argument('--output', type=str, default='result', help='source')     #结果保存的文件夹
     device =torch.device("cuda" if torch.cuda.is_available() else "cpu")  
 
