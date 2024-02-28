@@ -1,7 +1,5 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
-"""
-Block modules
-"""
+"""Block modules."""
 
 import torch
 import torch.nn as nn
@@ -10,159 +8,32 @@ import torch.nn.functional as F
 from .conv import Conv, DWConv, GhostConv, LightConv, RepConv
 from .transformer import TransformerBlock
 
-__all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
-           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'MP', 'SP', 'SPF')
+__all__ = (
+    "DFL",
+    "HGBlock",
+    "HGStem",
+    "SPP",
+    "SPPF",
+    "C1",
+    "C2",
+    "C3",
+    "C2f",
+    "C3x",
+    "C3TR",
+    "C3Ghost",
+    "GhostBottleneck",
+    "Bottleneck",
+    "BottleneckCSP",
+    "Proto",
+    "RepC3",
+    "ResNetLayer",
+)
 
-class MP(nn.Module):
-    def __init__(self, k=2):
-        super(MP, self).__init__()
-        self.m = nn.MaxPool2d(kernel_size=k, stride=k)
-
-    def forward(self, x):
-        return self.m(x)
-
-class SP(nn.Module):
-    def __init__(self, k=3, s=1):
-        super(SP, self).__init__()
-        self.m = nn.MaxPool2d(kernel_size=k, stride=s, padding=k // 2)
-
-    def forward(self, x):
-        return self.m(x)
-
-class SPF(nn.Module):
-    def __init__(self, k=3, s=1):
-        super(SPF, self).__init__()
-        self.n = (k - 1) // 2
-        self.m = nn.Sequential(*[nn.MaxPool2d(kernel_size=3, stride=s, padding=1) for _ in range(self.n)])
-
-    def forward(self, x):
-        return self.m(x)
-
-# yolov7-lite
-class StemBlock(nn.Module):
-    def __init__(self, c1, c2, k=3, s=2, p=None, g=1, act=True):
-        super(StemBlock, self).__init__()
-        self.stem_1 = Conv(c1, c2, k, s, p, g, act)
-        self.stem_2a = Conv(c2, c2 // 2, 1, 1, 0)
-        self.stem_2b = Conv(c2 // 2, c2, 3, 2, 1)
-        self.stem_2p = nn.MaxPool2d(kernel_size=2,stride=2,ceil_mode=True)
-        self.stem_3 = Conv(c2 * 2, c2, 1, 1, 0)
-
-    def forward(self, x):
-        stem_1_out  = self.stem_1(x)
-        stem_2a_out = self.stem_2a(stem_1_out)
-        stem_2b_out = self.stem_2b(stem_2a_out)
-        stem_2p_out = self.stem_2p(stem_1_out)
-        out = self.stem_3(torch.cat((stem_2b_out,stem_2p_out),1))
-        return out
-
-class conv_bn_relu_maxpool(nn.Module):
-    def __init__(self, c1, c2):  # ch_in, ch_out
-        super(conv_bn_relu_maxpool, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(c1, c2, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(c2),
-            nn.SiLU(inplace=True),
-        )
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
-
-    def forward(self, x):
-        return self.maxpool(self.conv(x))
-
-class DWConvblock(nn.Module):
-    "Depthwise conv + Pointwise conv"
-    def __init__(self, in_channels, out_channels, k, s):
-        super(DWConvblock, self).__init__()
-        self.p = k // 2
-        self.conv1 = nn.Conv2d(in_channels, in_channels, kernel_size=k, stride=s, padding=self.p, groups=in_channels, bias=False)
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.act1 = nn.SiLU(inplace=True)
-        self.conv2 = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.act2 = nn.SiLU(inplace=True)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.act1(x)
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.act2(x)
-        return x
-
-class ADD(nn.Module):
-    # Stortcut a list of tensors along dimension
-    def __init__(self, alpha=0.5):
-        super(ADD, self).__init__()
-        self.a = alpha
-
-    def forward(self, x):
-        x1, x2 = x[0], x[1]
-        return torch.add(x1, x2, alpha=self.a)
-
-def channel_shuffle(x, groups):
-    batchsize, num_channels, height, width = x.data.size()
-    channels_per_group = num_channels // groups
-
-    # reshape
-    x = x.view(batchsize, groups, channels_per_group, height, width)
-    x = torch.transpose(x, 1, 2).contiguous()
-    # flatten
-    x = x.view(batchsize, -1, height, width)
-    return x
-
-class Shuffle_Block(nn.Module):
-    def __init__(self, inp, oup, stride):
-        super(Shuffle_Block, self).__init__()
-
-        if not (1 <= stride <= 3):
-            raise ValueError('illegal stride value')
-        self.stride = stride
-
-        branch_features = oup // 2
-        assert (self.stride != 1) or (inp == branch_features << 1)
-
-        if self.stride > 1:
-            self.branch1 = nn.Sequential(
-                self.depthwise_conv(inp, inp, kernel_size=3, stride=self.stride, padding=1),
-                nn.BatchNorm2d(inp),
-                nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
-                nn.BatchNorm2d(branch_features),
-                nn.SiLU(inplace=True),
-            )
-
-        self.branch2 = nn.Sequential(
-            nn.Conv2d(inp if (self.stride > 1) else branch_features,
-                      branch_features, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(branch_features),
-            nn.SiLU(inplace=True),
-            self.depthwise_conv(branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1),
-            nn.BatchNorm2d(branch_features),
-            nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(branch_features),
-            nn.SiLU(inplace=True),
-        )
-
-    @staticmethod
-    def depthwise_conv(i, o, kernel_size, stride=1, padding=0, bias=False):
-        return nn.Conv2d(i, o, kernel_size, stride, padding, bias=bias, groups=i)
-
-    def forward(self, x):
-        if self.stride == 1:
-            x1, x2 = x.chunk(2, dim=1)
-            out = torch.cat((x1, self.branch2(x2)), dim=1)
-        else:
-            out = torch.cat((self.branch1(x), self.branch2(x)), dim=1)
-
-        out = channel_shuffle(out, 2)
-
-        return out
-
-# end of yolov7-lite
 
 class DFL(nn.Module):
     """
     Integral module of Distribution Focal Loss (DFL).
+
     Proposed in Generalized Focal Loss https://ieeexplore.ieee.org/document/9792391
     """
 
@@ -184,7 +55,12 @@ class DFL(nn.Module):
 class Proto(nn.Module):
     """YOLOv8 mask Proto module for segmentation models."""
 
-    def __init__(self, c1, c_=256, c2=32):  # ch_in, number of protos, number of masks
+    def __init__(self, c1, c_=256, c2=32):
+        """
+        Initializes the YOLOv8 mask Proto module with specified number of protos and masks.
+
+        Input arguments are ch_in, number of protos, number of masks.
+        """
         super().__init__()
         self.cv1 = Conv(c1, c_, k=3)
         self.upsample = nn.ConvTranspose2d(c_, c_, 2, 2, 0, bias=True)  # nn.Upsample(scale_factor=2, mode='nearest')
@@ -197,11 +73,14 @@ class Proto(nn.Module):
 
 
 class HGStem(nn.Module):
-    """StemBlock of PPHGNetV2 with 5 convolutions and one maxpool2d.
+    """
+    StemBlock of PPHGNetV2 with 5 convolutions and one maxpool2d.
+
     https://github.com/PaddlePaddle/PaddleDetection/blob/develop/ppdet/modeling/backbones/hgnet_v2.py
     """
 
     def __init__(self, c1, cm, c2):
+        """Initialize the SPP layer with input/output channels and specified kernel sizes for max pooling."""
         super().__init__()
         self.stem1 = Conv(c1, cm, 3, 2, act=nn.ReLU())
         self.stem2a = Conv(cm, cm // 2, 2, 1, 0, act=nn.ReLU())
@@ -225,11 +104,14 @@ class HGStem(nn.Module):
 
 
 class HGBlock(nn.Module):
-    """HG_Block of PPHGNetV2 with 2 convolutions and LightConv.
+    """
+    HG_Block of PPHGNetV2 with 2 convolutions and LightConv.
+
     https://github.com/PaddlePaddle/PaddleDetection/blob/develop/ppdet/modeling/backbones/hgnet_v2.py
     """
 
     def __init__(self, c1, cm, c2, k=3, n=6, lightconv=False, shortcut=False, act=nn.ReLU()):
+        """Initializes a CSP Bottleneck with 1 convolution using specified input and output channels."""
         super().__init__()
         block = LightConv if lightconv else Conv
         self.m = nn.ModuleList(block(c1 if i == 0 else cm, cm, k=k, act=act) for i in range(n))
@@ -265,7 +147,12 @@ class SPP(nn.Module):
 class SPPF(nn.Module):
     """Spatial Pyramid Pooling - Fast (SPPF) layer for YOLOv5 by Glenn Jocher."""
 
-    def __init__(self, c1, c2, k=5):  # equivalent to SPP(k=(5, 9, 13))
+    def __init__(self, c1, c2, k=5):
+        """
+        Initializes the SPPF layer with given input/output channels and kernel size.
+
+        This module is equivalent to SPP(k=(5, 9, 13)).
+        """
         super().__init__()
         c_ = c1 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
@@ -283,7 +170,8 @@ class SPPF(nn.Module):
 class C1(nn.Module):
     """CSP Bottleneck with 1 convolution."""
 
-    def __init__(self, c1, c2, n=1):  # ch_in, ch_out, number
+    def __init__(self, c1, c2, n=1):
+        """Initializes the CSP Bottleneck with configurations for 1 convolution with arguments ch_in, ch_out, number."""
         super().__init__()
         self.cv1 = Conv(c1, c2, 1, 1)
         self.m = nn.Sequential(*(Conv(c2, c2, 3) for _ in range(n)))
@@ -297,7 +185,10 @@ class C1(nn.Module):
 class C2(nn.Module):
     """CSP Bottleneck with 2 convolutions."""
 
-    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
+        """Initializes the CSP Bottleneck with 2 convolutions module with arguments ch_in, ch_out, number, shortcut,
+        groups, expansion.
+        """
         super().__init__()
         self.c = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, 2 * self.c, 1, 1)
@@ -312,9 +203,12 @@ class C2(nn.Module):
 
 
 class C2f(nn.Module):
-    """CSP Bottleneck with 2 convolutions."""
+    """Faster Implementation of CSP Bottleneck with 2 convolutions."""
 
-    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+        """Initialize CSP bottleneck layer with two convolutions with arguments ch_in, ch_out, number, shortcut, groups,
+        expansion.
+        """
         super().__init__()
         self.c = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, 2 * self.c, 1, 1)
@@ -337,7 +231,8 @@ class C2f(nn.Module):
 class C3(nn.Module):
     """CSP Bottleneck with 3 convolutions."""
 
-    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
+        """Initialize the CSP Bottleneck with given channels, number, shortcut, groups, and expansion values."""
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
@@ -364,6 +259,7 @@ class RepC3(nn.Module):
     """Rep C3."""
 
     def __init__(self, c1, c2, n=3, e=1.0):
+        """Initialize CSP Bottleneck with a single convolution using input channels, output channels, and number."""
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c2, 1, 1)
@@ -399,15 +295,18 @@ class C3Ghost(C3):
 class GhostBottleneck(nn.Module):
     """Ghost Bottleneck https://github.com/huawei-noah/ghostnet."""
 
-    def __init__(self, c1, c2, k=3, s=1):  # ch_in, ch_out, kernel, stride
+    def __init__(self, c1, c2, k=3, s=1):
+        """Initializes GhostBottleneck module with arguments ch_in, ch_out, kernel, stride."""
         super().__init__()
         c_ = c2 // 2
         self.conv = nn.Sequential(
             GhostConv(c1, c_, 1, 1),  # pw
             DWConv(c_, c_, k, s, act=False) if s == 2 else nn.Identity(),  # dw
-            GhostConv(c_, c2, 1, 1, act=False))  # pw-linear
-        self.shortcut = nn.Sequential(DWConv(c1, c1, k, s, act=False), Conv(c1, c2, 1, 1,
-                                                                            act=False)) if s == 2 else nn.Identity()
+            GhostConv(c_, c2, 1, 1, act=False),  # pw-linear
+        )
+        self.shortcut = (
+            nn.Sequential(DWConv(c1, c1, k, s, act=False), Conv(c1, c2, 1, 1, act=False)) if s == 2 else nn.Identity()
+        )
 
     def forward(self, x):
         """Applies skip connection and concatenation to input tensor."""
@@ -417,7 +316,10 @@ class GhostBottleneck(nn.Module):
 class Bottleneck(nn.Module):
     """Standard bottleneck."""
 
-    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):  # ch_in, ch_out, shortcut, groups, kernels, expand
+    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):
+        """Initializes a bottleneck module with given input/output channels, shortcut option, group, kernels, and
+        expansion.
+        """
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, k[0], 1)
@@ -425,14 +327,15 @@ class Bottleneck(nn.Module):
         self.add = shortcut and c1 == c2
 
     def forward(self, x):
-        """'forward()' applies the YOLOv5 FPN to input data."""
+        """'forward()' applies the YOLO FPN to input data."""
         return x + self.cv2(self.cv1(x)) if self.add else self.cv2(self.cv1(x))
 
 
 class BottleneckCSP(nn.Module):
     """CSP Bottleneck https://github.com/WongKinYiu/CrossStagePartialNetworks."""
 
-    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
+        """Initializes the CSP Bottleneck given arguments for ch_in, ch_out, number, shortcut, groups, expansion."""
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
@@ -448,3 +351,42 @@ class BottleneckCSP(nn.Module):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
         return self.cv4(self.act(self.bn(torch.cat((y1, y2), 1))))
+
+
+class ResNetBlock(nn.Module):
+    """ResNet block with standard convolution layers."""
+
+    def __init__(self, c1, c2, s=1, e=4):
+        """Initialize convolution with given parameters."""
+        super().__init__()
+        c3 = e * c2
+        self.cv1 = Conv(c1, c2, k=1, s=1, act=True)
+        self.cv2 = Conv(c2, c2, k=3, s=s, p=1, act=True)
+        self.cv3 = Conv(c2, c3, k=1, act=False)
+        self.shortcut = nn.Sequential(Conv(c1, c3, k=1, s=s, act=False)) if s != 1 or c1 != c3 else nn.Identity()
+
+    def forward(self, x):
+        """Forward pass through the ResNet block."""
+        return F.relu(self.cv3(self.cv2(self.cv1(x))) + self.shortcut(x))
+
+
+class ResNetLayer(nn.Module):
+    """ResNet layer with multiple ResNet blocks."""
+
+    def __init__(self, c1, c2, s=1, is_first=False, n=1, e=4):
+        """Initializes the ResNetLayer given arguments."""
+        super().__init__()
+        self.is_first = is_first
+
+        if self.is_first:
+            self.layer = nn.Sequential(
+                Conv(c1, c2, k=7, s=2, p=3, act=True), nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            )
+        else:
+            blocks = [ResNetBlock(c1, c2, s, e=e)]
+            blocks.extend([ResNetBlock(e * c2, c2, 1, e=e) for _ in range(n - 1)])
+            self.layer = nn.Sequential(*blocks)
+
+    def forward(self, x):
+        """Forward pass through the ResNet layer."""
+        return self.layer(x)

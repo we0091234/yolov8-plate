@@ -3,8 +3,8 @@ import os
 
 from ultralytics import YOLO
 # Load a model
-model = YOLO('ultralytics/models/v8/yolov8-lite-t-pose.yaml')  # build a new model from YAML
-model = YOLO('yolov8-lite-t.pt')  # load a pretrained model (recommended for training)  
+model = YOLO('yolov8n.yaml')  # build a new model from YAML
+model = YOLO('yolov8n.pt')  # load a pretrained model (recommended for training)  
 
 # Train the model
-model.train(data='v8_plate.yaml', epochs=100, imgsz=320, batch=16, device=[0])
+model.train(data='/mnt/mydisk/xiaolei/code/plate/plate_detect/ultralytics-main/ultralytics/cfg/datasets/plate.yaml', epochs=120, imgsz=640, batch=32, device=[0])

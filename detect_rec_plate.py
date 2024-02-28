@@ -90,10 +90,10 @@ def my_nums(dets,iou_thresh):  #nms操作
 
 def restore_box(dets,r,left,top):  #坐标还原到原图上
 
-    dets[:,[0,2,5,7,9,11]]=dets[:,[0,2,5,7,9,11]]-left
-    dets[:,[1,3,6,8,10,12]]= dets[:,[1,3,6,8,10,12]]-top
+    dets[:,[0,2]]=dets[:,[0,2]]-left
+    dets[:,[1,3]]= dets[:,[1,3]]-top
     dets[:,:4]/=r
-    dets[:,5:13]/=r
+    # dets[:,5:13]/=r
 
     return dets
     # pass
@@ -137,8 +137,9 @@ def det_rec_plate(img,img_ori,detect_model,plate_rec_model):
         rect=output[:4]
         rect = [int(x) for x in rect]
         label = output[-1]
-        land_marks=np.array(output[5:13],dtype='int64').reshape(4,2)
-        roi_img = four_point_transform(img_ori,land_marks)   #透视变换得到车牌小图
+        roi_img = img_ori[rect[1]:rect[3],rect[0]:rect[2]]
+        # land_marks=np.array(output[5:13],dtype='int64').reshape(4,2)
+        # roi_img = four_point_transform(img_ori,land_marks)   #透视变换得到车牌小图
         if int(label):        #判断是否是双层车牌，是双牌的话进行分割后然后拼接
             roi_img=get_split_merge(roi_img)
         plate_number,rec_prob,plate_color,color_conf=get_plate_result(roi_img,device,plate_rec_model,is_color=True)
@@ -147,7 +148,7 @@ def det_rec_plate(img,img_ori,detect_model,plate_rec_model):
         result_dict['plate_color']=plate_color   #车牌颜色
         result_dict['rect']=rect                      #车牌roi区域
         result_dict['detect_conf']=output[4]              #检测区域得分
-        result_dict['landmarks']=land_marks.tolist() #车牌角点坐标
+        # result_dict['landmarks']=land_marks.tolist() #车牌角点坐标
         # result_dict['rec_conf']=rec_prob   #每个字符的概率
         result_dict['roi_height']=roi_img.shape[0]  #车牌高度
         # result_dict['plate_color']=plate_color
@@ -172,15 +173,15 @@ def draw_result(orgimg,dict_list,is_color=False):   # 车牌结果画出来
         rect_area[3]=min(orgimg.shape[0],int(rect_area[3]+padding_h))
 
         height_area = result['roi_height']
-        landmarks=result['landmarks']
+        # landmarks=result['landmarks']
         result_p = result['plate_no']
         if result['plate_type']==0:#单层
             result_p+=" "+result['plate_color']
         else:                             #双层
             result_p+=" "+result['plate_color']+"双层"
         result_str+=result_p+" "
-        for i in range(4):  #关键点
-            cv2.circle(orgimg, (int(landmarks[i][0]), int(landmarks[i][1])), 5, clors[i], -1)
+        # for i in range(4):  #关键点
+        #     cv2.circle(orgimg, (int(landmarks[i][0]), int(landmarks[i][1])), 5, clors[i], -1)
         cv2.rectangle(orgimg,(rect_area[0],rect_area[1]),(rect_area[2],rect_area[3]),(0,0,255),2) #画框
         
         labelSize = cv2.getTextSize(result_p,cv2.FONT_HERSHEY_SIMPLEX,0.5,1) #获得字体的大小
@@ -198,7 +199,7 @@ def draw_result(orgimg,dict_list,is_color=False):   # 车牌结果画出来
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--detect_model', nargs='+', type=str, default=r'weights/yolov8-lite-t-plate.pt', help='model.pt path(s)')  #yolov8检测模型
+    parser.add_argument('--detect_model', nargs='+', type=str, default=r'weights/yolov8s.pt', help='model.pt path(s)')  #yolov8检测模型
     parser.add_argument('--rec_model', type=str, default=r'weights/plate_rec_color.pth', help='model.pt path(s)')#车牌字符识别模型  
     parser.add_argument('--image_path', type=str, default=r'imgs', help='source')   #待识别图片路径
     parser.add_argument('--img_size', type=int, default=640, help='inference size (pixels)')  #yolov8 网络模型输入大小

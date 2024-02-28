@@ -1,0 +1,1 @@
+yolo task=detect mode=train model=yolov8s.yaml  data=./ultralytics/cfg/datasets/plate.yaml epochs=120 batch=32 imgsz=640 pretrained=False optimizer=SGD 
