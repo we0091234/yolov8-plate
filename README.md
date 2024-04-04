@@ -45,4 +45,4 @@ python detect_rec_plate.py --detect_model weights/yolov8-lite-t-plate.pt  --rec_
 ## 联系
 
 **有问题可以提issues 或者加qq群:837982567 询问**
-![Image ](data/images/105384078.png)
+![Image ](readme/105384078.png)
