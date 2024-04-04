@@ -5,7 +5,7 @@
 直接运行detect_plate.py 或者运行如下命令行：
 
 ```
-python detect_rec_plate.py --detect_model weights/yolov8-lite-t-plate.pt  --rec_model weights/plate_rec_color.pth --image_path imgs --output result
+python detect_rec_plate.py --detect_model weights/yolov8s.pt  --rec_model weights/plate_rec_color.pth --image_path imgs --output result
 ```
 
 测试文件夹imgs，结果保存再 result 文件夹中
