@@ -44,5 +44,4 @@ python detect_rec_plate.py --detect_model weights/yolov8s.pt  --rec_model weight
 
 ## 联系
 
-**有问题可以提issues 或者加qq群:837982567 询问**
-![Image ](readme/105384078.png)
+**有问题可以提issues 或者加qq群:769809695（新群） 837982567（已满） 询问**
